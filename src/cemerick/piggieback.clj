@@ -218,10 +218,12 @@
 
 (defn wrap-cljs-repl
   [h]
-  (fn [{:keys [op session transport] :as msg}]
+  (fn [{:keys [accent op session transport] :as msg}]
+    (when accent (println "Clojure accent:" accent))
     (let [cljs-active? (@session #'*cljs-repl-env*)
+          run-as-cljs? (and cljs-active? (#{"repl" "cljs"} accent))
           msg (assoc msg :transport (cljs-ns-transport transport))
-          msg (if (and cljs-active? (= op "eval")) (prep-code msg) msg)]
+          msg (if (and run-as-cljs? (= op "eval")) (prep-code msg) msg)]
       ; ensure that bindings exist so cljs-repl can set! 'em
       (when-not (contains? @session #'*cljs-repl-env*)
         (swap! session (partial merge {#'*cljs-repl-env* *cljs-repl-env*
@@ -229,8 +231,7 @@
                                        #'*cljs-repl-options* *cljs-repl-options*
                                        #'ana/*cljs-ns* ana/*cljs-ns*
                                        #'*original-clj-ns* nil})))
-
-      (with-bindings (if cljs-active?
+      (with-bindings (if run-as-cljs?
                        {#'load-file/load-file-code load-file-code}
                        {})
         (h msg)))))
